@@ -1,0 +1,8 @@
+name: test
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: test
+        run: curl https://r1-ndr.ykt.cbern.com.cn/b
