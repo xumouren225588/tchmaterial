@@ -1,0 +1,51 @@
+name: Issue Download Runner
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  run:
+    if: startsWith(github.event.issue.title, 'download ')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build script & run
+        env:
+          RAW_TITLE: ${{ github.event.issue.title }}
+          BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          # 得到干净的文件名
+          FILE_NAME="$(printf '%s\n' "$RAW_TITLE" | sed 's/^download[[:space:]]*//').pdf"
+          FILE_NAME="$(printf '%s\n' "$FILE_NAME" | xargs)"   # 去掉首尾空格
+
+          # 把多行 curl 拼成一行，去掉行尾反斜杠，再追加 --output
+          ONE_LINE=$(printf '%s\n' "$BODY" | tr -d '\\' | tr '\n' ' ')
+          printf '%s --output "%s"\n' "$ONE_LINE" "$FILE_NAME" > run.sh
+
+          # 执行
+          chmod +x run.sh
+          ./run.sh
+          rm -f run.sh
+
+          # 提交
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$FILE_NAME"
+          git commit -m "Download $FILE_NAME from issue #$ISSUE_NUMBER"
+          git push
+
+      - name: Close issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              state: 'closed'
+            });
