@@ -8,9 +8,6 @@ jobs:
   run:
     if: startsWith(github.event.issue.title, 'download ')
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: write
 
     steps:
       - name: Checkout
@@ -22,36 +19,24 @@ jobs:
           BODY: ${{ github.event.issue.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          # 计算文件名
+          # 得到干净的文件名
           FILE_NAME="$(printf '%s\n' "$RAW_TITLE" | sed 's/^download[[:space:]]*//').pdf"
-          FILE_NAME="$(printf '%s\n' "$FILE_NAME" | xargs)"
+          FILE_NAME="$(printf '%s\n' "$FILE_NAME" | xargs)"   # 去掉首尾空格
 
-          # 生成脚本：去掉 curl 中的行尾反斜杠并追加 --output
+          # 把多行 curl 拼成一行，去掉行尾反斜杠，再追加 --output
           ONE_LINE=$(printf '%s\n' "$BODY" | tr -d '\\' | tr '\n' ' ')
           printf '%s --output "%s"\n' "$ONE_LINE" "$FILE_NAME" > run.sh
+
+          # 执行
           chmod +x run.sh
           ./run.sh
           rm -f run.sh
 
-          # 判断是否 > 100 MB
-          if [[ $(stat -c%s "$FILE_NAME") -gt 104857600 ]]; then
-            # 拆分
-            split -b 100M -d "$FILE_NAME" "${FILE_NAME}."
-            # 删除原大文件，只保留分卷
-            rm "$FILE_NAME"
-            # 把分卷加入 git
-            git add "${FILE_NAME}."*
-            COMMIT_MSG="Download $FILE_NAME (split into 100 MB parts) from issue #$ISSUE_NUMBER"
-          else
-            # 普通提交
-            git add "$FILE_NAME"
-            COMMIT_MSG="Download $FILE_NAME from issue #$ISSUE_NUMBER"
-          fi
-
           # 提交
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -m "$COMMIT_MSG"
+          git add "$FILE_NAME"
+          git commit -m "Download $FILE_NAME from issue #$ISSUE_NUMBER"
           git push
 
       - name: Close issue
