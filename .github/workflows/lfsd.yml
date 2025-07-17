@@ -1,0 +1,35 @@
+# 放在同名文件最上方，或单独 .github/workflows/init-lfs.yml
+name: Init Git LFS once
+
+on:
+  push:
+    branches: [main]   # 只跑一次即可
+    paths-ignore: ['.gitattributes']  # 如果 .gitattributes 已存在就不跑
+
+jobs:
+  init-lfs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: false     # 先不用 LFS 检出，避免递归
+
+      - name: Setup Git LFS
+        run: |
+          # 如已启用则跳过
+          if [[ -f .gitattributes ]] && grep -q '\*\.pdf.*lfs' .gitattributes; then
+            echo "Git LFS for pdf already configured."
+            exit 0
+          fi
+
+          # 初始化
+          git lfs install
+          git lfs track "*.pdf"
+          git add .gitattributes
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "Enable Git LFS for pdf files"
+          git push
