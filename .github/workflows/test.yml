@@ -18,6 +18,6 @@ jobs:
     steps:
       # Runs a single command using the runners shell
       - name: Run a one-line script
-        run: ping https://r1-ndr-private.ykt.cbern.com.cn/
+        run: ping r1-ndr-private.ykt.cbern.com.cn
 
       
